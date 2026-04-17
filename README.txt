@@ -1,0 +1,10 @@
+CodeGuardian AI is a lightweight code security scanning system designed to detect sensitive information such as API keys, passwords, access tokens, and database credentials embedded within source code. In modern development environments, accidental exposure of such secrets can lead to serious security risks, and this project addresses that issue through an automated and user-friendly approach. The system uses rule-based detection with regular expressions to scan files across multiple programming languages and identify potential vulnerabilities. Each detected item is classified into predefined severity levels such as LOW, MEDIUM, HIGH, and CRITICAL, which are further mapped to numerical scores to help prioritize risks effectively. The system also identifies the most vulnerable file based on aggregated severity scores, allowing users to focus on high-risk areas. To ensure secure handling of sensitive data, detected secrets are partially masked before display, preventing exposure while still maintaining recognizability. The system also optimizes performance by reducing unnecessary AI requests and focusing primarily on higher-severity issues. An AI-powered advisory component provides concise explanations and suggested fixes for each issue. In cases where AI responses are unavailable or inconsistent, a fallback mechanism ensures that meaningful guidance is always provided. The application features an interactive interface where users can upload files or entire projects, perform scans, and view results through structured analysis and visual insights. Overall, CodeGuardian AI serves as a practical tool for improving code security awareness and preventing unintended data exposure.
+
+To run create a new folder in that open command prompt and run the following command:
+https://github.com/Anirudh-Deepak/CodeGuardian
+
+Then go to the VS code terminal: run streamlit run app.py 
+
+The api key has not been added due to security reasons, it will show the fall back command.
+
+You can upload a file of your choice or can use the one attached in the project named as file.py.
