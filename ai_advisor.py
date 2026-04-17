@@ -1,7 +1,24 @@
-from google import genai
 import time
-client = genai.Client(api_key="AIzaSyA2D85YNmYaOcHPjowYCHeOAMxZRmcK9qo")
+import os
+from google import genai
+from dotenv import load_dotenv
+
+# ✅ Load environment variables from .env
+load_dotenv()
+
+# ✅ Get API key securely
+API_KEY = os.getenv("GEMINI_API_KEY")
+
+# ❗ Safety check (prevents silent failure)
+if not API_KEY:
+    raise ValueError("GEMINI_API_KEY not found. Check your .env file.")
+
+# ✅ Initialize Gemini client
+client = genai.Client(api_key=API_KEY)
+
+
 def get_ai_advice(secret_type, code_line):
+
     prompt = f"""
 You are a cybersecurity expert.
 
@@ -33,6 +50,7 @@ Rules:
             return response.text
 
         except Exception as e:
+            # Handle rate limit
             if "429" in str(e):
                 time.sleep(3)
             else:

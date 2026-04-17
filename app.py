@@ -5,6 +5,7 @@ import zipfile
 import pandas as pd
 import plotly.express as px
 import time
+import hashlib  # ⭐ NEW
 
 from scanner import scan_directory, scan_file
 from analyzer import analyze_findings
@@ -13,6 +14,27 @@ from ai_advisor import get_ai_advice
 st.set_page_config(page_title="CodeGuardian AI", layout="wide")
 
 USER_FILE = "users.json"
+
+# ⭐ NEW - hashing
+def hash_password(pw):
+    return hashlib.sha256(pw.encode()).hexdigest()
+
+# ⭐ NEW - masking
+def mask_secret(value):
+    if not value:
+        return "****"
+
+    value = str(value)
+
+    if len(value) <= 4:
+        return "*" * len(value)
+
+    start = value[:2]
+    end = value[-2:]
+
+    masked_middle = "*" * (len(value) - 4)
+
+    return start + masked_middle + end
 
 def load_users():
     if os.path.exists(USER_FILE):
@@ -31,39 +53,14 @@ SEVERITY_SCORE = {
     "LOW": 3
 }
 
+# 🔥 fallback unchanged
 def fallback_advice(secret_type):
-    data = {
-        "API Key": (
-            "API keys in code can be exposed and misused to access services or consume resources.",
-            "Store keys securely using environment variables and avoid committing them."
-        ),
-        "Password": (
-            "Hardcoded passwords can be discovered and lead to unauthorized access.",
-            "Use secure credential storage instead of embedding passwords in code."
-        ),
-        "Access Token": (
-            "Exposed tokens allow attackers to act as authenticated users.",
-            "Store tokens securely and rotate them periodically."
-        ),
-        "AWS Access Key": (
-            "AWS keys provide direct cloud access and can cause serious damage.",
-            "Use IAM roles and avoid embedding keys in applications."
-        ),
-        "Private Key": (
-            "Private keys are critical for encryption and must remain confidential.",
-            "Use secure key management systems and never expose them."
-        ),
-        "Database URL": (
-            "Database URLs may contain credentials exposing sensitive data.",
-            "Move credentials to environment variables."
-        ),
-        "JWT Token": (
-            "JWT tokens can be used to hijack sessions if exposed.",
-            "Generate tokens dynamically and store them securely."
-        )
-    }
-    return data.get(secret_type, ("Sensitive data risk.", "Secure this value properly."))
+    return (
+        "Sensitive data detected which may expose systems if leaked. Such values should not be stored in code.",
+        "Use environment variables or secret management systems and avoid committing secrets to source files."
+    )
 
+# ---------------- SESSION ----------------
 if "users" not in st.session_state:
     st.session_state.users = load_users()
 
@@ -76,6 +73,7 @@ if "current_user" not in st.session_state:
 if "results" not in st.session_state:
     st.session_state.results = None
 
+# ---------------- AUTH ----------------
 def auth_page():
     st.markdown("<h1 style='text-align:center;'>CodeGuardian AI</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:gray;'>Secure • Detect • Analyze Your Code</p>", unsafe_allow_html=True)
@@ -89,24 +87,26 @@ def auth_page():
             if username in st.session_state.users:
                 st.error("User already exists")
             else:
-                st.session_state.users[username] = password
+                # ⭐ HASHED
+                st.session_state.users[username] = hash_password(password)
                 save_users(st.session_state.users)
                 st.success("Account created")
 
     else:
         if st.button("Login"):
-            if username in st.session_state.users and st.session_state.users[username] == password:
+            # ⭐ HASH CHECK
+            if username in st.session_state.users and st.session_state.users[username] == hash_password(password):
                 st.session_state.logged_in = True
                 st.session_state.current_user = username
                 st.rerun()
             else:
                 st.error("Invalid credentials")
 
+# ---------------- UPLOAD ----------------
 def upload_page():
     st.markdown("<h1 style='text-align:center;'>CodeGuardian AI</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:gray;'>Secure • Detect • Analyze Your Code</p>", unsafe_allow_html=True)
 
-    st.write("")
     st.markdown("### 📤 Upload Your Project")
 
     uploaded_file = st.file_uploader("Upload file or ZIP project", type=["zip","py","js","java","c","cpp"])
@@ -134,20 +134,15 @@ def upload_page():
                 try:
                     advice = get_ai_advice(item["type"], item["code"])
 
-                    if (
-                        not advice or
-                        "429" in str(advice) or
-                        "Rate limit" in str(advice) or
-                        "Error" in str(advice)
-                    ):
-                        danger, fix = fallback_advice(item["type"])
-                    else:
-                        if "Fix:" in advice:
+                    if advice and isinstance(advice, str):
+                        if "Fix:" in advice and "Why Dangerous:" in advice:
                             parts = advice.split("Fix:")
                             danger = parts[0].replace("Why Dangerous:", "").strip()
                             fix = parts[1].strip()
                         else:
                             danger, fix = fallback_advice(item["type"])
+                    else:
+                        danger, fix = fallback_advice(item["type"])
 
                 except:
                     danger, fix = fallback_advice(item["type"])
@@ -157,20 +152,12 @@ def upload_page():
                 item["score"] = SEVERITY_SCORE.get(item["severity"], 1)
 
                 progress.progress((i + 1) / len(analyzed))
-                time.sleep(0.2)
+                time.sleep(0.05)
 
             st.session_state.results = analyzed
+            st.success("✅ Scan Completed!")
 
-            st.markdown("""
-            <div style="text-align:center; padding:20px; border-radius:10px; background-color:#f3f4f6;">
-                <h4>✅ Scan Completed Successfully</h4>
-                <p>
-                👉 Go to <b>Analysis</b> to view detailed findings<br>
-                👉 Go to <b>Visualization</b> for graphical insights
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-
+# ---------------- ANALYSIS ----------------
 def analysis_page():
     st.header("📊 Analysis")
 
@@ -179,44 +166,71 @@ def analysis_page():
         return
 
     df = pd.DataFrame(st.session_state.results)
+    df = df.sort_values(by="score", ascending=False)
 
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Issues", len(df))
-    col2.metric("Critical", len(df[df["severity"] == "CRITICAL"]))
-    col3.metric("High", len(df[df["severity"] == "HIGH"]))
+    # ⭐ NEW - most dangerous file
+    file_scores = df.groupby("file")["score"].sum().sort_values(ascending=False)
+    if not file_scores.empty:
+        st.error(f"🚨 Most Vulnerable File: {file_scores.index[0]}")
+
+    critical = len(df[df["severity"] == "CRITICAL"])
+    high = len(df[df["severity"] == "HIGH"])
+
+    st.subheader("🔍 Security Findings Summary")
+
+    if critical > 0:
+        st.error(f"⚠️ {critical} Critical issue(s) require immediate attention")
+    elif high > 0:
+        st.warning(f"⚠️ {high} High severity issue(s) detected")
+    else:
+        st.success("✅ No critical issues found")
+
+    col1, col2, col3, col4, col5 = st.columns(5)
+
+    col1.metric("Total", len(df))
+    col2.metric("Critical", critical)
+    col3.metric("High", high)
     col4.metric("Medium", len(df[df["severity"] == "MEDIUM"]))
+    col5.metric("Low", len(df[df["severity"] == "LOW"]))
 
     st.divider()
 
-    for item in st.session_state.results:
+    for item in df.to_dict("records"):
         st.subheader(f"{item['file']} (Line {item['line']})")
 
-        col1, col2 = st.columns([3,1])
-        col1.code(item["code"])
-        col2.write(f"**Severity:** {item['severity']}")
-        col2.write(f"**Score:** {item['score']}/10")
+        # ⭐ MASKED OUTPUT
+        masked_value = mask_secret(item.get("value", ""))
+        st.code(f"{item['type']} = {masked_value}")
 
-        st.write("**Why Dangerous:**")
+        st.write(f"Severity: {item['severity']} | Score: {item['score']}")
+        st.write(f"Occurrences: {item.get('occurrences',1)}")
+
+        st.write("Why Dangerous:")
         st.write(item["danger"])
 
-        st.write("**Fix:**")
+        st.write("Fix:")
         st.write(item["fix"])
 
         st.divider()
 
+    csv = df.to_csv(index=False)
+    st.download_button("📥 Download Report", data=csv, file_name="report.csv")
+
+# ---------------- VISUAL ----------------
 def visualization_page():
     st.header("📈 Visualization")
 
     if st.session_state.results is None:
-        st.warning("Run a scan first")
+        st.warning("Run scan first")
         return
 
     df = pd.DataFrame(st.session_state.results)
 
     col1, col2 = st.columns(2)
-    col1.plotly_chart(px.pie(df, names="severity", hole=0.5), use_container_width=True)
+    col1.plotly_chart(px.pie(df, names="severity"), use_container_width=True)
     col2.plotly_chart(px.bar(df, x="type"), use_container_width=True)
 
+# ---------------- MAIN ----------------
 if not st.session_state.logged_in:
     auth_page()
 else:
