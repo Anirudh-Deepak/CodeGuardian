@@ -6,9 +6,10 @@ SECRET_PATTERNS = {
     "Password": r"(?i)password\s*=\s*['\"](.+?)['\"]",
     "Access Token": r"(?i)token\s*=\s*['\"](.+?)['\"]",
     "AWS Access Key": r"(AKIA[0-9A-Z]{16})",
-    "Private Key": r"(-----BEGIN PRIVATE KEY-----)",
+    "Private Key": r"-----BEGIN[\s\S]*PRIVATE KEY-----",
     "Database URL": r"((mongodb|mysql|postgres):\/\/[^\s]+)",
-    "JWT Token": r"(eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)"
+    "JWT Token": r"(eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)",
+    "Email": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
 }
 
 # 🔥 Generic detection (for unknown secrets)

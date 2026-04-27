@@ -6,7 +6,8 @@ SEVERITY_LEVELS = {
     "AWS Access Key": "CRITICAL",
     "Private Key": "CRITICAL",
     "Database URL": "HIGH",
-    "JWT Token": "MEDIUM"
+    "JWT Token": "MEDIUM",
+    "Email": "LOW"
 
 }
 
