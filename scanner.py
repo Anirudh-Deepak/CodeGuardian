@@ -58,7 +58,7 @@ def scan_file(file_path):
 
 def scan_directory(folder_path):
 
-    supported_extensions = [".py", ".js", ".java", ".c", ".cpp"]
+    supported_extensions = [".py", ".js", ".java", ".c", ".cpp",".json"]
 
     all_findings = []
     seen = set()
