@@ -3,17 +3,13 @@ import os
 from google import genai
 from dotenv import load_dotenv
 
-# ✅ Load environment variables from .env
 load_dotenv()
 
-# ✅ Get API key securely
 API_KEY = os.getenv("GEMINI_API_KEY")
 
-# ❗ Safety check (prevents silent failure)
 if not API_KEY:
     raise ValueError("GEMINI_API_KEY not found. Check your .env file.")
 
-# ✅ Initialize Gemini client
 client = genai.Client(api_key=API_KEY)
 
 
@@ -50,7 +46,7 @@ Rules:
             return response.text
 
         except Exception as e:
-            # Handle rate limit
+
             if "429" in str(e):
                 time.sleep(3)
             else:

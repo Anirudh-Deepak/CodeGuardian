@@ -12,18 +12,14 @@ SECRET_PATTERNS = {
     "Email": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
 }
 
-# 🔥 Generic detection (for unknown secrets)
 GENERIC_PATTERN = r"['\"]([A-Za-z0-9_\-]{20,})['\"]"
 
 
 def detect_secrets(code_line):
 
     findings = []
-    detected_values = set()  # ✅ prevents duplicate detection
+    detected_values = set()  
 
-    # =========================
-    # 1️⃣ Pattern-based detection (HIGH confidence)
-    # =========================
     for secret_type, pattern in SECRET_PATTERNS.items():
         matches = re.findall(pattern, code_line)
 
@@ -38,18 +34,13 @@ def detect_secrets(code_line):
 
                 detected_values.add(value)
 
-    # =========================
-    # 2️⃣ Entropy-based detection (LOW confidence)
-    # =========================
     generic_matches = re.findall(GENERIC_PATTERN, code_line)
 
     for value in generic_matches:
 
-        # ❗ Skip if already detected by pattern
         if value in detected_values:
             continue
-
-        # Only detect if it looks like a real secret
+        
         if is_high_entropy(value):
             findings.append({
                 "type": "Potential Secret",

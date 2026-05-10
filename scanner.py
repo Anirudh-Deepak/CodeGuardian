@@ -82,7 +82,6 @@ def scan_directory(folder_path):
                         all_findings.append(item)
 
                     else:
-                        # Update occurrences globally
                         for f in all_findings:
                             if f["type"] == item["type"] and f["raw_value"] == item["raw_value"]:
                                 f["occurrences"] += 1

@@ -5,7 +5,7 @@ import zipfile
 import pandas as pd
 import plotly.express as px
 import time
-import hashlib  # ⭐ NEW
+import hashlib  
 
 from scanner import scan_directory, scan_file
 from analyzer import analyze_findings
@@ -15,11 +15,9 @@ st.set_page_config(page_title="CodeGuardian AI", layout="wide")
 
 USER_FILE = "users.json"
 
-# ⭐ NEW - hashing
 def hash_password(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
 
-# ⭐ NEW - masking
 def mask_secret(value):
     if not value:
         return "****"
@@ -53,14 +51,12 @@ SEVERITY_SCORE = {
     "LOW": 3
 }
 
-# 🔥 fallback unchanged
 def fallback_advice(secret_type):
     return (
         "Sensitive data detected which may expose systems if leaked. Such values should not be stored in code.",
         "Use environment variables or secret management systems and avoid committing secrets to source files."
     )
 
-# ---------------- SESSION ----------------
 if "users" not in st.session_state:
     st.session_state.users = load_users()
 
@@ -73,7 +69,6 @@ if "current_user" not in st.session_state:
 if "results" not in st.session_state:
     st.session_state.results = None
 
-# ---------------- AUTH ----------------
 def auth_page():
     st.markdown("<h1 style='text-align:center;'>CodeGuardian AI</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:gray;'>Secure • Detect • Analyze Your Code</p>", unsafe_allow_html=True)
@@ -87,14 +82,12 @@ def auth_page():
             if username in st.session_state.users:
                 st.error("User already exists")
             else:
-                # ⭐ HASHED
                 st.session_state.users[username] = hash_password(password)
                 save_users(st.session_state.users)
                 st.success("Account created")
 
     else:
         if st.button("Login"):
-            # ⭐ HASH CHECK
             if username in st.session_state.users and st.session_state.users[username] == hash_password(password):
                 st.session_state.logged_in = True
                 st.session_state.current_user = username
@@ -102,7 +95,6 @@ def auth_page():
             else:
                 st.error("Invalid credentials")
 
-# ---------------- UPLOAD ----------------
 def upload_page():
     st.markdown("<h1 style='text-align:center;'>CodeGuardian AI</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align:center; color:gray;'>Secure • Detect • Analyze Your Code</p>", unsafe_allow_html=True)
@@ -157,7 +149,6 @@ def upload_page():
             st.session_state.results = analyzed
             st.success("✅ Scan Completed!")
 
-# ---------------- ANALYSIS ----------------
 def analysis_page():
     st.header("📊 Analysis")
 
@@ -168,7 +159,6 @@ def analysis_page():
     df = pd.DataFrame(st.session_state.results)
     df = df.sort_values(by="score", ascending=False)
 
-    # ⭐ NEW - most dangerous file
     file_scores = df.groupby("file")["score"].sum().sort_values(ascending=False)
     if not file_scores.empty:
         st.error(f"🚨 Most Vulnerable File: {file_scores.index[0]}")
@@ -198,7 +188,6 @@ def analysis_page():
     for item in df.to_dict("records"):
         st.subheader(f"{item['file']} (Line {item['line']})")
 
-        # ⭐ MASKED OUTPUT
         masked_value = mask_secret(item.get("value", ""))
         st.code(f"{item['type']} = {masked_value}")
 
@@ -216,7 +205,6 @@ def analysis_page():
     csv = df.to_csv(index=False)
     st.download_button("📥 Download Report", data=csv, file_name="report.csv")
 
-# ---------------- VISUAL ----------------
 def visualization_page():
     st.header("📈 Visualization")
 
@@ -230,7 +218,6 @@ def visualization_page():
     col1.plotly_chart(px.pie(df, names="severity"), use_container_width=True)
     col2.plotly_chart(px.bar(df, x="type"), use_container_width=True)
 
-# ---------------- MAIN ----------------
 if not st.session_state.logged_in:
     auth_page()
 else:
