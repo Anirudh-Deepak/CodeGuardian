@@ -3,8 +3,10 @@ from rules import detect_secrets
 
 
 def mask_secret(value):
+
     if len(value) <= 6:
         return "****"
+
     return value[:3] + "****" + value[-3:]
 
 
@@ -15,42 +17,56 @@ def scan_file(file_path):
     counts = {}
 
     try:
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as file:
-            lines = file.readlines()
 
-        for line_number, line in enumerate(lines, start=1):
+        with open(
+            file_path,
+            "r",
+            encoding="utf-8",
+            errors="ignore"
+        ) as file:
 
-            detected = detect_secrets(line)
+            for line_number, line in enumerate(file, start=1):
 
-            for item in detected:
+                detected = detect_secrets(line)
 
-                secret_type = item["type"]
-                value = item["value"]
+                for item in detected:
 
-                key = (secret_type, value)
+                    secret_type = item["type"]
+                    value = item["value"]
 
-                if key not in seen:
-                    seen.add(key)
-                    counts[key] = 1
+                    key = (secret_type, value)
 
-                    findings.append({
-                        "file": file_path,
-                        "line": line_number,
-                        "type": secret_type,
-                        "code": line.strip(),
-                        "value": mask_secret(value),
-                        "raw_value": value,
-                        "occurrences": 1
-                    })
+                    if key not in seen:
 
-                else:
-                    counts[key] += 1
+                        seen.add(key)
+                        counts[key] = 1
 
-                    for f in findings:
-                        if f["type"] == secret_type and f["raw_value"] == value:
-                            f["occurrences"] = counts[key]
+                        findings.append({
+                            "file": file_path,
+                            "line": line_number,
+                            "type": secret_type,
+                            "code": line.strip(),
+                            "value": mask_secret(value),
+                            "raw_value": value,
+                            "occurrences": 1
+                        })
+
+                    else:
+
+                        counts[key] += 1
+
+                        for f in findings:
+
+                            if (
+                                f["type"] == secret_type
+                                and
+                                f["raw_value"] == value
+                            ):
+
+                                f["occurrences"] = counts[key]
 
     except Exception as e:
+
         print(f"Error scanning {file_path}: {e}")
 
     return findings
@@ -58,16 +74,45 @@ def scan_file(file_path):
 
 def scan_directory(folder_path):
 
-    supported_extensions = [".py", ".js", ".java", ".c", ".cpp",".json"]
+    supported_extensions = [
+    ".py",
+    ".js",
+    ".java",
+    ".c",
+    ".cpp",
+    ".json",
+    ".env",
+    ".yaml",
+    ".yml",
+    ".ini",
+    ".txt",
+    ".properties"
+]
+
+    ignored_dirs = {
+        "venv",
+        "__pycache__",
+        "node_modules",
+        ".git",
+        ".idea"
+    }
 
     all_findings = []
     seen = set()
 
     for root, dirs, files in os.walk(folder_path):
 
+        dirs[:] = [
+            d for d in dirs
+            if d not in ignored_dirs
+        ]
+
         for file in files:
 
-            if any(file.endswith(ext) for ext in supported_extensions):
+            if any(
+                file.endswith(ext)
+                for ext in supported_extensions
+            ):
 
                 file_path = os.path.join(root, file)
 
@@ -75,15 +120,29 @@ def scan_directory(folder_path):
 
                 for item in results:
 
-                    key = (item["type"], item["raw_value"])
+                    key = (
+                        item["file"],
+                        item["type"],
+                        item["raw_value"]
+                    )
 
                     if key not in seen:
+
                         seen.add(key)
                         all_findings.append(item)
 
                     else:
+
                         for f in all_findings:
-                            if f["type"] == item["type"] and f["raw_value"] == item["raw_value"]:
+
+                            if (
+                                f["file"] == item["file"]
+                                and
+                                f["type"] == item["type"]
+                                and
+                                f["raw_value"] == item["raw_value"]
+                            ):
+
                                 f["occurrences"] += 1
 
     return all_findings
